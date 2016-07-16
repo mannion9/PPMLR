@@ -1,0 +1,11 @@
+0.035
+5.99924
+19.5975
+460.894
+5.99242
+-6.19633
+46.0905
+
+ In order t, rho_l,u_l,p_l rho_r,u_r,p_r
+ Test 5 from Toro
+ Consists of a right and left shock wave comming from the soluiton of test 3 and 4

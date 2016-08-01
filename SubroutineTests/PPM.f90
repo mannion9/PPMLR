@@ -48,7 +48,7 @@ open(unit=1,file='Output/a.txt')
 open(unit=2,file='Output/true.txt')
 open(unit=3,file='Output/uL.txt')
 open(unit=4,file='Output/uR.txt')
-!open(unit=7,file='Output/u12.txt')
+open(unit=7,file='Output/u12.txt')
 do i=0,Nt
 	write(1,*) a(iMIN:iMAX)
 	write(2,*) a_true
@@ -61,7 +61,7 @@ close(1)
 close(2)
 close(3)
 close(4)
-!close(7)
+close(7)
 end program main 
 
 subroutine forward(cdt,dx,a)
@@ -118,7 +118,8 @@ five  = (dx(js+2:je+2)+dx(js+1:je+1))/(2.*dx(js+1:je+1)+dx(js:je))
 CALL avgSlope(a,dx,del)
 a12(js:je) = a(js:je) + one*(a(js+1:je+1)-a(js:je)) &
 			+ two*(three*(four-five)*(a(js+1:je+1)-a(js:je)) &
-            - dx(js:je)*four*del(js+1:je+1)+dx(js+1:je+1)*five*del(js:je))			
+            - dx(js:je)*four*del(js+1:je+1)+dx(js+1:je+1)*five*del(js:je))	
+write(7,*) a12		
 aR(iMIN:iMAX+1) = a12(iMIN:iMAX+1)
 aL(iMIN:iMAX+1) = a12(iMIN-1:iMAX)
 if (detect==1) then
@@ -291,7 +292,9 @@ do i=iMIN,iMAX
       y(i) = 0.
     end if 
   else if (choice==1) then
-    y(i) = EXP(-(x(i)-mean)**(2)/(2.*sigma))
+  	y(i) = EXP(-(x(i)-mean)**(2)/(2.*sigma))
+  else if (choice==2) then
+	  y(i)= 1.
   end if 
 end do
 end subroutine

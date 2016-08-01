@@ -1,8 +1,9 @@
-animate   = 1    # Set to 1 to animate set to 0 to get individual plots
+animate     = 1    # Set to 1 to animate set to 0 to get individual plots
 step      = 1  	# When animation == 0; Plot steps size 
 plotter   = 1 	# When animation == 0; plotter == 0 -> plot total E , plotter = 1 -> plot primatives
 
 import os
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation 
 
@@ -32,7 +33,7 @@ energy_e  = ReadInData(file_name_e[1])		# Exact internal energy
 press_e   = ReadInData(file_name_e[2])		# Exact pressure
 rho_e	  = ReadInData(file_name_e[3])		# Exact rho
 vel_e	  = ReadInData(file_name_e[4])		# Exact velocity
-t       = 0.
+t         = np.cumsum(dt)
 
 if animate == 1:
     # First set up the figure, the axis, and the plot element we want to animate
@@ -45,12 +46,12 @@ if animate == 1:
     ax2.set_xlabel('r'),ax2.set_ylabel('u')
     ax3.set_xlabel('r'),ax3.set_ylabel('P')
     ax4.set_xlabel('r'),ax4.set_ylabel('E')
-    ax1.set_xlim([0.,1.]) , ax2.set_xlim([0.,1.])
-    ax3.set_xlim([0.,1.]) , ax4.set_xlim([0.,1.])
+    ax1.set_xlim([0.,1]) , ax2.set_xlim([0.,1.1])
+    ax3.set_xlim([0.,1.]) , ax4.set_xlim([0.,1.1])
     ax1.set_ylim([0.,1.2])  # rho
-    ax2.set_ylim([0,2.])    # velocity
-    ax3.set_ylim([0,1.])    # pressure
-    ax4.set_ylim([1.6,2.8]) # Energy
+    ax2.set_ylim([0,2.2])    # velocity
+    ax3.set_ylim([0,1.2])    # pressure
+    ax4.set_ylim([1.6,3]) # Energy
     
     scat1 = ax1.scatter(r,rho[0])
     scat2 = ax2.scatter(r,vel[0])
@@ -61,10 +62,8 @@ if animate == 1:
     plt3, = ax3.plot(r_e,press_e[0])
     plt4, = ax4.plot(r_e,energy_e[0])
     
-    t=0
     # animation function.  This is called sequentially
-    def update(i,fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4,t):
-        t += dt[i][0]
+    def update(i,fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4):
         scat1.set_offsets([[r[j],rho[i][j]]    for j in range(len(rho[i])-1)])
         scat2.set_offsets([[r[j],vel[i][j]]    for j in range(len(vel[i])-1)])
         scat3.set_offsets([[r[j],press[i][j]]  for j in range(len(press[i])-1)])
@@ -73,10 +72,10 @@ if animate == 1:
         plt2.set_data(r_e,vel_e[i])
         plt3.set_data(r_e,press_e[i])
         plt4.set_data(r_e,energy_e[i])
-        plt.suptitle('Time %f' % t)
+        plt.suptitle('Time %f' % t[i])
         return scat1,scat2,scat3,scat4
     
-    anim = animation.FuncAnimation(fig, update,fargs=(fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4,t),frames=len(rho),interval=500)
+    anim = animation.FuncAnimation(fig, update,fargs=(fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4),frames=len(rho),interval=500)
     anim.save('animation.mp4', fps=10)
     plt.show(1)
     

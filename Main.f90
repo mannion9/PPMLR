@@ -1,4 +1,5 @@
 ! To do
+! -Interpol flat issue on left
 ! - Think about the adaptive timer more, what to do if blows up
 ! - Make Boundaries easier to read
 ! - Discontinuity detection
@@ -26,8 +27,8 @@ module CommonData
 ! r_min - Left most ghost cell center
 ! r_max - Right most ghost cell center
 implicit none
-!integer,parameter :: Nm = 64,Nt = 6
-integer,parameter :: Nm=100 ,Nt = 100
+integer,parameter :: Nm = 6,Nt = 6
+!integer,parameter :: Nm=100 ,Nt = 100
 integer,parameter :: i_min=-3,i_max=Nm+3 , iMIN=0,iMAX=Nm-1 !Nm is number of interior real
 real,parameter    :: rMIN=0.,rMAX=1.,t_max=.25,gm = 1.4,alpha=0.,ap1 = alpha+1.,  &
                      delta=1.0d-30 , COURANT = 0.5 , dr_uni = (rMAX-rMIN)/REAL(Nm-1), &
@@ -46,15 +47,13 @@ real :: dt,total_mass,time=0.0
 integer :: i
 
 ! Create cell center,edges,and initial conditions
-
-
 CALL linspace(r_min,r_max,r,SIZE(r))                            ! All cell centers (including ghost cells)
 CALL linspace(r_min-.5*dr_uni,r_max+.5*dr_uni,r_12_i,SIZE(r_12_i))  ! All cell edges   (including ghost cells)
 open(unit=1,file='Output/CellCenter.txt')
 write(1,*) r(iMIN:iMAX)
 close(1)
-! Initialize cell width and initial conditions and total mass inside real cells
 
+! Initialize cell width and initial conditions and total mass inside real cells
 dr(iMIN:iMAX) = r_12_i(iMIN+1:iMAX+1)-r_12_i(iMIN:iMAX)
 CALL intialCondition(r,U,V,1)
 dm = dr*V(1,:)
@@ -284,14 +283,16 @@ Wl = SQRT(ABS(c_p(j)*(1.+((gmp1)/(2.*gm))*((p_star(j)/pL(j))-1.))))
 u_star(j)  = -(p_star(j)-pL(j))/Wl + uL(j)  
 end do 
 
-!print*,'Solution to RP'
+! For a density left and right state of the Sod test problem (initial condition==1)
+! The exact solution is p*=.303 and u*=.92
+print*,'Solution to RP'
 !print*,'cp:',c_p(iMIN:iMAX+1)
 !print*,'cm:',c_m(iMIN:iMAX+1)
-!print*,'pL :',pL(iMIN:iMAX)
-!print*,'pR:',pR(iMIN:iMAX)
+print*,'pL :',pL(iMIN:iMAX)
+print*,'pR:',pR(iMIN:iMAX)
 !print*,'GUESS:',.5*(pL+pR)
-!print*,'p_star:',p_star(iMIN:iMAX+1)
-!print*,'u_star:',u_star(iMIN:iMAX+1)
+print*,'p_star:',p_star(iMIN:iMAX+1)
+print*,'u_star:',u_star(iMIN:iMAX+1)
 
 end subroutine
 
@@ -576,6 +577,8 @@ mspeed  = MAX(mc,mu)									! Maximum speed in problem
 dt = COURANT*MINVAL(dr(iMIN:iMAX))/mspeed				! Maximum time step 
 if (i.GT.1) then ! If not the first step than check the new time step is not growing too fast
     if (dt.GT.2.*dt_temp) then ! Ensure that next time step is not twice as much as the previous
+		print*,"MaxSpeed:",mspeed
+		print*,'minspace:',MINVAL(dr(iMIN:iMAX))
         dt = 1.5*dt_temp
     end if 
 end if 

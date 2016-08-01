@@ -1,0 +1,11 @@
+0.15
+1.0
+-2.0
+0.4
+1.0
+2.0
+0.4
+
+ In order t, rho_l,u_l,p_l rho_r,u_r,p_r
+ Test 2 from Toro
+ Consists of a left and right rarefaction wave and a stationary contact

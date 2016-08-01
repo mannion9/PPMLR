@@ -1,5 +1,6 @@
-animate     = 1    # Set to 1 to animate set to 0 to get individual plots
+animate   = 1    # Set to 1 to animate set to 0 to get individual plots
 step      = 1  	# When animation == 0; Plot steps size 
+Lagrange  = 1   # Set to one if plotting lagrange cell data
 plotter   = 1 	# When animation == 0; plotter == 0 -> plot total E , plotter = 1 -> plot primatives
 
 import os
@@ -25,15 +26,17 @@ rho    = ReadInData(file_name_m[1])     # Density
 dt     = ReadInData(file_name_m[2])	    # dt
 Energy = ReadInData(file_name_m[3])	    # Energy
 energy = ReadInData(file_name_m[4])    	# Internal Energy
-press  = ReadInData(file_name_m[5]) 	# Pressure
-vel    = ReadInData(file_name_m[6])	    # Velocity
+lr     = ReadInData(file_name_m[5])     # Lagrange cell center
+press  = ReadInData(file_name_m[6]) 	# Pressure
+mass   = ReadInData(file_name_m[7])  # Total mass
+vel    = ReadInData(file_name_m[8])	    # Velocity
 
 r_e       = ReadInData(file_name_e[0])[0]   # Domain
 energy_e  = ReadInData(file_name_e[1])		# Exact internal energy
 press_e   = ReadInData(file_name_e[2])		# Exact pressure
 rho_e	  = ReadInData(file_name_e[3])		# Exact rho
 vel_e	  = ReadInData(file_name_e[4])		# Exact velocity
-t         = np.cumsum(dt)
+t         = np.cumsum(dt)					# Time
 
 if animate == 1:
     # First set up the figure, the axis, and the plot element we want to animate
@@ -46,13 +49,14 @@ if animate == 1:
     ax2.set_xlabel('r'),ax2.set_ylabel('u')
     ax3.set_xlabel('r'),ax3.set_ylabel('P')
     ax4.set_xlabel('r'),ax4.set_ylabel('E')
-    ax1.set_xlim([0.,1]) , ax2.set_xlim([0.,1.1])
-    ax3.set_xlim([0.,1.]) , ax4.set_xlim([0.,1.1])
-    ax1.set_ylim([0.,1.2])  # rho
-    ax2.set_ylim([0,2.2])    # velocity
-    ax3.set_ylim([0,1.2])    # pressure
+    ax1.set_xlim([0.,1.]) , ax2.set_xlim([0.,1.])
+    ax3.set_xlim([0.,1.]) , ax4.set_xlim([0.,1.])
+    ax1.set_ylim([-.1,1.2])  # rho
+    ax2.set_ylim([0,2.])    # velocity
+    ax3.set_ylim([0,1.1])    # pressure
     ax4.set_ylim([1.6,3]) # Energy
-    
+    if Lagrange == 1:
+        r = lr[0]
     scat1 = ax1.scatter(r,rho[0])
     scat2 = ax2.scatter(r,vel[0])
     scat3 = ax3.scatter(r,press[0])
@@ -64,6 +68,8 @@ if animate == 1:
     
     # animation function.  This is called sequentially
     def update(i,fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4):
+        if Lagrange == 1:
+            r = lr[i]
         scat1.set_offsets([[r[j],rho[i][j]]    for j in range(len(rho[i])-1)])
         scat2.set_offsets([[r[j],vel[i][j]]    for j in range(len(vel[i])-1)])
         scat3.set_offsets([[r[j],press[i][j]]  for j in range(len(press[i])-1)])
@@ -72,7 +78,7 @@ if animate == 1:
         plt2.set_data(r_e,vel_e[i])
         plt3.set_data(r_e,press_e[i])
         plt4.set_data(r_e,energy_e[i])
-        plt.suptitle('Time %f' % t[i])
+        plt.suptitle('Time %f , Total Mass %f ' %(t[i] , mass[i][0]))
         return scat1,scat2,scat3,scat4
     
     anim = animation.FuncAnimation(fig, update,fargs=(fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4),frames=len(rho),interval=500)
@@ -105,7 +111,7 @@ else:
         ax2.set_xlabel('r') , ax2.set_ylabel('Velocity')
         ax3.set_xlabel('r') , ax3.set_ylabel('Pressure')
         ax4.set_xlabel('r') , ax4.set_ylabel('Internal Energy')
-        plt.suptitle('Time %f' % t)
+        plt.suptitle('Time %f' % t[i])
         
         if plotter == 0:
             ax5 = fig.add_subplot(2,j,5)

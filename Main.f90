@@ -1,6 +1,7 @@
 ! To do
-! -Interpol flat issue on left
+! - Domain of dependence
 ! - Think about the adaptive timer more, what to do if blows up
+! - LAGRANGE MUST CONSERVE MASS 
 ! - Make Boundaries easier to read
 ! - Discontinuity detection
 ! - Remapping check
@@ -27,11 +28,11 @@ module CommonData
 ! r_min - Left most ghost cell center
 ! r_max - Right most ghost cell center
 implicit none
-integer,parameter :: Nm = 6,Nt = 6
-!integer,parameter :: Nm=100 ,Nt = 100
+!integer,parameter :: Nm = 64,Nt = 6
+integer,parameter :: Nm=1000 ,Nt = 500
 integer,parameter :: i_min=-3,i_max=Nm+3 , iMIN=0,iMAX=Nm-1 !Nm is number of interior real
 real,parameter    :: rMIN=0.,rMAX=1.,t_max=.25,gm = 1.4,alpha=0.,ap1 = alpha+1.,  &
-                     delta=1.0d-30 , COURANT = 0.5 , dr_uni = (rMAX-rMIN)/REAL(Nm-1), &
+                     delta=1.0d-30 , COURANT = 0.1 , dr_uni = (rMAX-rMIN)/REAL(Nm-1), &
                      r_min = rMIN -dr_uni*(iMIN-i_min) , &
                      r_max = rMAX +dr_uni*(i_max-iMAX)
 end module
@@ -43,21 +44,24 @@ real,dimension(i_min:i_max)   :: dm,dr,r
 real,dimension(i_min:i_max+1) :: r_12_i,r_12_ip
 real,dimension(3,i_min:i_max) :: U,V
 real,dimension(i_min:i_max) :: itters  ! DO NOT NEED JUST FOR DEBUGGING
-real :: dt,total_mass,time=0.0
+real :: dt,total_mass,current_mass,time=0.0
 integer :: i
 
 ! Create cell center,edges,and initial conditions
+
+
 CALL linspace(r_min,r_max,r,SIZE(r))                            ! All cell centers (including ghost cells)
 CALL linspace(r_min-.5*dr_uni,r_max+.5*dr_uni,r_12_i,SIZE(r_12_i))  ! All cell edges   (including ghost cells)
 open(unit=1,file='Output/CellCenter.txt')
 write(1,*) r(iMIN:iMAX)
 close(1)
-
 ! Initialize cell width and initial conditions and total mass inside real cells
+
 dr(iMIN:iMAX) = r_12_i(iMIN+1:iMAX+1)-r_12_i(iMIN:iMAX)
 CALL intialCondition(r,U,V,1)
 dm = dr*V(1,:)
-total_mass = SUM(dm(iMIN:iMAX))  ! rho*dV
+total_mass = SUM(dm(iMIN:iMAX))  ! Total Mass initially in system
+current_mass = total_mass        ! Total Mass in system at each step
 print*,'Total Mass:',total_mass
 
 open(unit=1,file='Output/Density.txt')
@@ -66,29 +70,42 @@ open(unit=3,file='Output/InternalEnergy.txt')
 open(unit=4,file='Output/Pressure.txt')
 open(unit=5,file='Output/Energy.txt')
 open(unit=7,file='Output/dt.txt')
+open(unit=8,file='Output/LagnCellCenter.txt')
+open(unit=9,file='Output/TotalMass.txt')
 
-do i = i_min,i_max
-    itters(i) = real(i)
-end do 
+! do i = i_min,i_max
+    ! itters(i) = real(i)
+! end do 
 !print*,'itt :',itters(iMIN:iMAX)
 i=0
 
 do while (time.LE.t_max .AND. i.LE.NT)
-    i=i+1
-    CALL boundaries(dr,U,V,0)
-    r_12_ip = r_12_i  
-    dm = dr*V(1,:)
-    CALL TimeStep(U,V,dr,dt,i)
-    IF (ABS(total_mass-SUM(dm(iMIN:iMAX)))/total_mass.GE. .1) THEN
+    CALL boundaries(dr,U,V,0)    					 ! Impose boundary conditions for ghost cells
+    CALL TimeStep(U,V,dr,dt,i)	 					 ! Deterimne time step
+    CALL Output(U,V,current_mass,dt,r_12_i,i,1,0) ! Write out data
+    CALL LagrangeStep(U,V,dm,dt,r_12_i,r_12_ip) 	 ! Preform Lagrange step
+    !CALL Remap(dr,r_12_i,r_12_ip,U,V,dm)
+	
+	! Update current itteration count, time, cell edge locations, cell with, and current mass in system
+	i=i+1
+	time = time+dt
+	r_12_i = r_12_ip  ! Remap will set r_12_ip = stationary euler cell
+	dr(iMIN:iMAX) = r_12_i(iMIN+1:iMAX+1)-r_12_i(iMIN:iMAX)
+	current_mass = SUM(dm(iMIN:iMAX))       
+	!print*,'M:',SUM(dm(iMIN:iMAX)) 		! CHECK MASS IS CONSERVED
+	!print*,dt								! CHECK DT   IS POSITIVE
+	!print*,'dr min:',MINVAL(dr(iMIN:iMAX)) ! CHECK CELL WIDTHS 
+	!print*,MINLOC(dr(iMIN:iMAX))			! CHECK THAT MINUMUM CELL LOCATION IS A SHOCK
+	IF (current_mass/total_mass.LT. .9) THEN
         PRINT*,'Conservation of mass broken at itteration:',i,'at time:',time
         exit
     END IF 
-    time = time+dt
-    CALL Output(U,V,dm,dt,i,1,0) ! Write out
-    CALL LagrangeStep(U,V,dm,dt,r_12_i,r_12_ip) ! updates  tau,u,E
-    CALL Output(U,V,dm,dt,i,0,0)
-    CALL Remap(dr,r_12_i,r_12_ip,U,V,dm)
-    CALL Output(U,V,dm,dt,i,0,0)
+	IF (MINVAL(dr(iMIN:iMAX)).LE.0.0) then
+		print*,'Cell with negative volume has been created at itteration',i,'at time:',time
+		!exit
+	end if 
+    dm = dr*V(1,:)
+
 end do 
 print*,'Finished at time:',time,',after:',i,'itterations:'
 close(1)
@@ -100,7 +117,7 @@ subroutine Remap(dr,r_12_i,r_12_ip,U,V,dm)
 use CommonData
 implicit none
 real,intent(in),dimension(i_min:i_max) :: dr
-real,intent(in),dimension(i_min:i_max+1) :: r_12_i,r_12_ip
+real,intent(inout),dimension(i_min:i_max+1) :: r_12_i,r_12_ip
 real,intent(inout),dimension(3,i_min:i_max) :: U,V
 real,intent(inout),dimension(i_min:i_max) :: dm
 real,dimension(i_min:i_max) :: rhoR,rhoL,delrho,rho6,rho12, &
@@ -172,7 +189,8 @@ do i=iMIN,iMAX
 end do 
 V(3,:) = (gm-1.)*V(1,:)*V(2,:)   ! Pressure in remappend cell
 
-dm = dm_ip  ! Update mass
+r_12_ip = r_12_i ! Update cell edges (that is they are the same as the stationary eulerian cells
+dm = dm_ip 		 ! Update mass
 
 end subroutine
 
@@ -283,16 +301,14 @@ Wl = SQRT(ABS(c_p(j)*(1.+((gmp1)/(2.*gm))*((p_star(j)/pL(j))-1.))))
 u_star(j)  = -(p_star(j)-pL(j))/Wl + uL(j)  
 end do 
 
-! For a density left and right state of the Sod test problem (initial condition==1)
-! The exact solution is p*=.303 and u*=.92
-print*,'Solution to RP'
+!print*,'Solution to RP'
 !print*,'cp:',c_p(iMIN:iMAX+1)
 !print*,'cm:',c_m(iMIN:iMAX+1)
-print*,'pL :',pL(iMIN:iMAX)
-print*,'pR:',pR(iMIN:iMAX)
+!print*,'pL :',pL(iMIN:iMAX)
+!print*,'pR:',pR(iMIN:iMAX)
 !print*,'GUESS:',.5*(pL+pR)
-print*,'p_star:',p_star(iMIN:iMAX+1)
-print*,'u_star:',u_star(iMIN:iMAX+1)
+!print*,'p_star:',p_star(iMIN:iMAX+1)
+!print*,'u_star:',u_star(iMIN:iMAX+1)
 
 end subroutine
 
@@ -543,7 +559,7 @@ do i=iMIN-1,iMAX
 end do 
 end subroutine
 
-subroutine TimeStep(U,V,dr,dt,i)
+subroutine TimeStep(U,V,dm,dt,i)
 !-----------------------------------------
 ! Calculate the required time step with the given Courant number
 ! and takes into acound the maximum speeds and distances in the problem
@@ -557,7 +573,7 @@ subroutine TimeStep(U,V,dr,dt,i)
 ! Inputs:
 !   U - Vector of variables (tau,u,E)
 !   V - Vector of variables (rho,e,P)
-!   dr- Euler cell widths
+!   dm- Mass in Lagrange Cell
 !	i - Current time itteration count
 ! Output:
 !	dt - Time step
@@ -565,7 +581,7 @@ subroutine TimeStep(U,V,dr,dt,i)
 use CommonData 
 implicit none
 real,intent(in),dimension(3,i_min:i_max) :: U,V
-real,intent(in),dimension(i_min:i_max) :: dr
+real,intent(in),dimension(i_min:i_max) :: dm
 real,intent(inout) :: dt 
 integer,intent(in) :: i
 real,dimension(iMIN:iMAX) :: csound
@@ -573,13 +589,12 @@ real :: dt_temp , mc ,mu , mspeed
 dt_temp = dt  											! Previous time step
 mc      = MAXVAL(SQRT(gm*V(3,iMIN:iMAX)/V(1,iMIN:iMAX)))! Maximum speed of sound
 mu 	    = MAXVAL(ABS(U(2,iMIN:iMAX)))					! Maximum fluid speed
-mspeed  = MAX(mc,mu)									! Maximum speed in problem
-dt = COURANT*MINVAL(dr(iMIN:iMAX))/mspeed				! Maximum time step 
-if (i.GT.1) then ! If not the first step than check the new time step is not growing too fast
+mspeed  = MAX(mc,mu,delta)								! Maximum speed in problem
+dt = COURANT*MINVAL(dm(iMIN:iMAX))/mspeed				! Maximum time step 
+if (i.GT.0) then ! If not the first step than check the new time step is not growing too fast
     if (dt.GT.2.*dt_temp) then ! Ensure that next time step is not twice as much as the previous
-		print*,"MaxSpeed:",mspeed
-		print*,'minspace:',MINVAL(dr(iMIN:iMAX))
         dt = 1.5*dt_temp
+		print*,'Growing Time Step'
     end if 
 end if 
 
@@ -701,26 +716,27 @@ V(2,iMIN:iMAX) = V(3,iMIN:iMAX)/((gm-1.)*V(1,iMIN:iMAX)) ! e = P/(gm-1)/rho
 U(3,iMIN:iMAX) = V(2,iMIN:iMAX) + .5*U(2,iMIN:iMAX)**(2) ! E = e + .5 u**(2)
 end subroutine
 
-subroutine Output(U,V,dm,dt,itter,writeOut,printOut)
+subroutine Output(U,V,M,dt,r_12_i,itter,writeOut,printOut)
 !---------------------------------
 ! Will either write out current state of system
 ! to the terminal or to a series of .txt files
 ! that have already been opened before the call.
 ! Input:
-!   U - Vector of variables (tau,u,E)
-!   V - Vector of variables (rho,e,P)
-!   dm - Mass contained in each Lagrange and Eulerian cell
+!   U  - Vector of variables (tau,u,E)
+!   V  - Vector of variables (rho,e,P)
+!   M  - Total mass in system at this time step
 !	dt - Current time step
-!	itter - Current time itteration 
+!   r_12_i   - Lagrange cell edges
+!	itter  	 - Current time itteration 
 !	writeOut - Set to 1 to write out data to .txt files
 !   printOut - Set to 1 to write out data to terminal 
 !-------------------------------
 use CommonData
 implicit none
 real,intent(in),dimension(3,i_min:i_max) :: U,V
-real,intent(in),dimension(i_min:i_max)   :: dm 
+real,intent(in),dimension(i_min:i_max)   :: r_12_i
 integer,intent(in) :: itter,writeOut,printOut
-real,intent(in) :: dt
+real,intent(in) :: dt, M
 integer :: st,en,choice 
 choice = 0 ! Set choice to 0 to prin out real domain, 1 to print out entire domain (including ghost cells)
 if (choice==0) then ! print out real domain
@@ -740,7 +756,7 @@ if (printOut==1) then
     print*,'e  :',V(2,st:en)
     print*,'P  :',V(3,st:en)
     print*,'dt :',dt
-    print*,'M  :',SUM(dm(iMIN:iMAX))
+    print*,'M  :',M
 end if 
 
 if (writeOut==1) then
@@ -749,7 +765,9 @@ if (writeOut==1) then
     write(3,*) V(2,iMIN:iMAX) ! Internal Energy
     write(4,*) V(3,iMIN:iMAX) ! Pressure
     write(5,*) U(3,iMIN:iMAX) ! Total Energy
-    write(7,*) dt        ! dt
+    write(7,*) dt       	  ! dt
+	write(8,*) .5*(r_12_i(iMIN:iMAX)+r_12_i(iMIN+1:iMAX+1)) ! Lagrange Cell Ceters
+	write(9,*) M 			  ! Total mass
 end if 
 end subroutine
 

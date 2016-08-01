@@ -29,7 +29,7 @@ module CommonData
 ! r_max - Right most ghost cell center
 implicit none
 !integer,parameter :: Nm = 64,Nt = 6
-integer,parameter :: Nm=1000 ,Nt = 500
+integer,parameter :: Nm=1000 ,Nt = 100
 integer,parameter :: i_min=-3,i_max=Nm+3 , iMIN=0,iMAX=Nm-1 !Nm is number of interior real
 real,parameter    :: rMIN=0.,rMAX=1.,t_max=.25,gm = 1.4,alpha=0.,ap1 = alpha+1.,  &
                      delta=1.0d-30 , COURANT = 0.1 , dr_uni = (rMAX-rMIN)/REAL(Nm-1), &
@@ -59,6 +59,7 @@ close(1)
 
 dr(iMIN:iMAX) = r_12_i(iMIN+1:iMAX+1)-r_12_i(iMIN:iMAX)
 CALL intialCondition(r,U,V,1)
+dt = 1.0d+30   ! Initialize as very large number for first time step, ensures that we use a calculated dt
 dm = dr*V(1,:)
 total_mass = SUM(dm(iMIN:iMAX))  ! Total Mass initially in system
 current_mass = total_mass        ! Total Mass in system at each step
@@ -81,7 +82,7 @@ i=0
 
 do while (time.LE.t_max .AND. i.LE.NT)
     CALL boundaries(dr,U,V,0)    					 ! Impose boundary conditions for ghost cells
-    CALL TimeStep(U,V,dr,dt,i)	 					 ! Deterimne time step
+    CALL TimeStep(U,V,dr,dt)	 					 ! Deterimne time step
     CALL Output(U,V,current_mass,dt,r_12_i,i,1,0) ! Write out data
     CALL LagrangeStep(U,V,dm,dt,r_12_i,r_12_ip) 	 ! Preform Lagrange step
     !CALL Remap(dr,r_12_i,r_12_ip,U,V,dm)
@@ -559,7 +560,7 @@ do i=iMIN-1,iMAX
 end do 
 end subroutine
 
-subroutine TimeStep(U,V,dm,dt,i)
+subroutine TimeStep(U,V,dr,dt)
 !-----------------------------------------
 ! Calculate the required time step with the given Courant number
 ! and takes into acound the maximum speeds and distances in the problem
@@ -573,30 +574,23 @@ subroutine TimeStep(U,V,dm,dt,i)
 ! Inputs:
 !   U - Vector of variables (tau,u,E)
 !   V - Vector of variables (rho,e,P)
-!   dm- Mass in Lagrange Cell
-!	i - Current time itteration count
+!   dr- Mass in Lagrange Cell
 ! Output:
 !	dt - Time step
 !-----------------------------------------
 use CommonData 
 implicit none
 real,intent(in),dimension(3,i_min:i_max) :: U,V
-real,intent(in),dimension(i_min:i_max) :: dm
+real,intent(in),dimension(i_min:i_max) :: dr
 real,intent(inout) :: dt 
-integer,intent(in) :: i
 real,dimension(iMIN:iMAX) :: csound
 real :: dt_temp , mc ,mu , mspeed
 dt_temp = dt  											! Previous time step
 mc      = MAXVAL(SQRT(gm*V(3,iMIN:iMAX)/V(1,iMIN:iMAX)))! Maximum speed of sound
 mu 	    = MAXVAL(ABS(U(2,iMIN:iMAX)))					! Maximum fluid speed
 mspeed  = MAX(mc,mu,delta)								! Maximum speed in problem
-dt = COURANT*MINVAL(dm(iMIN:iMAX))/mspeed				! Maximum time step 
-if (i.GT.0) then ! If not the first step than check the new time step is not growing too fast
-    if (dt.GT.2.*dt_temp) then ! Ensure that next time step is not twice as much as the previous
-        dt = 1.5*dt_temp
-		print*,'Growing Time Step'
-    end if 
-end if 
+dt = COURANT*MINVAL(dr(iMIN:iMAX))/mspeed				! Maximum time step 
+dt = MIN(dt,2.*dt_temp)
 
 end subroutine 
 

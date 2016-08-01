@@ -1,4 +1,4 @@
-animate = 1    # Set to 1 to animate set to 0 to get individual plots
+animate   = 1    # Set to 1 to animate set to 0 to get individual plots
 step      = 1  	# When animation == 0; Plot steps size 
 plotter   = 1 	# When animation == 0; plotter == 0 -> plot total E , plotter = 1 -> plot primatives
 
@@ -21,13 +21,13 @@ file_name_e	= [ 'Exact-Output/'+fn for fn in os.listdir(os.getcwd()+'/Exact-Outp
 
 r      = ReadInData(file_name_m[0])[0]  # CellCenter
 rho    = ReadInData(file_name_m[1])     # Density
-dt     = ReadInData(file_name_m[2])	# dt
-Energy = ReadInData(file_name_m[3])	# Energy
+dt     = ReadInData(file_name_m[2])	    # dt
+Energy = ReadInData(file_name_m[3])	    # Energy
 energy = ReadInData(file_name_m[4])    	# Internal Energy
 press  = ReadInData(file_name_m[5]) 	# Pressure
-vel    = ReadInData(file_name_m[6])	# Velocity
+vel    = ReadInData(file_name_m[6])	    # Velocity
 
-r_e       = ReadInData(file_name_e[0])[0]     # Domain
+r_e       = ReadInData(file_name_e[0])[0]   # Domain
 energy_e  = ReadInData(file_name_e[1])		# Exact internal energy
 press_e   = ReadInData(file_name_e[2])		# Exact pressure
 rho_e	  = ReadInData(file_name_e[3])		# Exact rho
@@ -41,6 +41,10 @@ if animate == 1:
     ax2 = fig.add_subplot(2,2,2)
     ax3 = fig.add_subplot(2,2,3)
     ax4 = fig.add_subplot(2,2,4)
+    ax1.set_xlabel('r'),ax1.set_ylabel('rho')
+    ax2.set_xlabel('r'),ax2.set_ylabel('u')
+    ax3.set_xlabel('r'),ax3.set_ylabel('P')
+    ax4.set_xlabel('r'),ax4.set_ylabel('E')
     ax1.set_xlim([0.,1.]) , ax2.set_xlim([0.,1.])
     ax3.set_xlim([0.,1.]) , ax4.set_xlim([0.,1.])
     ax1.set_ylim([0.,1.2])  # rho
@@ -91,7 +95,7 @@ else:
         ax1.scatter(r,rho[i]   ,facecolors='none',edgecolor='black')
         ax2.scatter(r,vel[i]   ,facecolors='none',edgecolor='black')
         ax3.scatter(r,press[i] ,facecolors='none',edgecolor='black')
-        ax4.scatter(r,energy[i],facecolors='none',edgecolor='black')\
+        ax4.scatter(r,energy[i],facecolors='none',edgecolor='black')
 
         ax1.plot(r_e,rho_e[i])
         ax2.plot(r_e,vel_e[i])

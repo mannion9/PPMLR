@@ -1,8 +1,8 @@
 module CommonData
 implicit none
 real,parameter ::  x_min=0.,x_max=5.,t_min=0.,t_max=1.,c=1.,COURANT=.1
-!integer,parameter :: Nx=64, Nt=512,choice=2,detect=0  !Choice = (0,1,2)->(sod,gauss,flat)
-integer,parameter :: Nx=8,Nt=200,choice=0,detect=0
+integer,parameter :: Nx=128, Nt=1024,choice=0,detect=0  !Choice = (0,1,2)->(sod,gauss,flat)
+!integer,parameter :: Nx=8,Nt=200,choice=0,detect=0
 integer,parameter :: i_min=-3,i_max=Nx+3,iMIN=0,iMAX=Nx-1
 end module
 
@@ -69,8 +69,8 @@ do i=0,Nt
 	write(1,*) a(iMIN:iMAX)
 	write(2,*) a_true
 	! Apply boundary conditions
-	CALL boundaries(dx,a,1)
-	print*,a
+	CALL boundaries(dx,a,0)
+	!print*,a
 	CALL initial_data(x(iMIN:iMAX)-i*(c*dt),a_true) ! Create analyitic solution
 	CALL forward(cdt,dx,a)              ! Create numerical solution
 end do
@@ -277,7 +277,6 @@ else if (BC==1) then ! Periodic
 	 a(i_min:iMIN-1)  = a(Nx-nl:iMAX)  ! For left most ghost with right most real
 	 dx(Nx:i_max)     = dx(iMIN:nr-1) ! For left most ghost with right most real
 	 a(Nx:i_max)	  = a(iMIN:nr-1)  ! For left most ghost with right most real
-
 end if 
 end subroutine
 

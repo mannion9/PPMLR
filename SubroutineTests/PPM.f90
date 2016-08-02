@@ -1,8 +1,8 @@
 module CommonData
 implicit none
-real,parameter ::  x_min=0.,x_max=5.,t_min=0.,t_max=1.,c=1.,COURANT=.1
-integer,parameter :: Nx=128, Nt=1024,choice=0,detect=0  !Choice = (0,1,2)->(sod,gauss,flat)
-!integer,parameter :: Nx=8,Nt=200,choice=0,detect=0
+real,parameter ::  x_min=0.,x_max=5.,t_min=0.,t_max=1.,c=1.,COURANT=.9
+integer,parameter :: Nx=128, Nt=2048,choice=3,detect=0  !Choice = (0,1,2)->(square wave,gauss,flat)
+!integer,parameter :: Nx=8,Nt=200,choice=1,detect=0
 integer,parameter :: i_min=-3,i_max=Nx+3,iMIN=0,iMAX=Nx-1
 end module
 
@@ -25,10 +25,12 @@ integer :: i
 ! test_1(1:3) = test(0:2)
 ! !print*, test(abs(i_min)-1:iMIN,1)
 ! print*, test_1(size(test_1):1:-1)
- do i=i_min,i_max
-	 test(i) = i
-end do
-print*,test
+
+
+!do i=i_min,i_max
+!	 test(i) = i
+!end do
+!print*,test
 
 
 ! -------------------------------
@@ -70,7 +72,10 @@ do i=0,Nt
 	write(2,*) a_true
 	! Apply boundary conditions
 	CALL boundaries(dx,a,0)
+	!print*,dx
+	!print*,''
 	!print*,a
+	!prinT*,''
 	CALL initial_data(x(iMIN:iMAX)-i*(c*dt),a_true) ! Create analyitic solution
 	CALL forward(cdt,dx,a)              ! Create numerical solution
 end do
@@ -310,6 +315,12 @@ do i=iMIN,iMAX
     y(i) = EXP(-(x(i)-mean)**(2)/(2.*sigma))
   else if (choice==2) then
 	y(i) = 1.
+  else if (choice==3) then
+	  if (x(i).LE.x_R) then
+		  y(i) = 1.
+	  else 
+		  y(i) = 0.
+	  end if 
   end if 
 end do
 end subroutine

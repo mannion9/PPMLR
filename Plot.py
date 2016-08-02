@@ -1,6 +1,6 @@
 animate   = 1    # Set to 1 to animate set to 0 to get individual plots
 step      = 1  	# When animation == 0; Plot steps size 
-Lagrange  = 1   # Set to one if plotting lagrange cell data
+Lagrange  = 0   # Set to one if plotting lagrange cell data
 plotter   = 1 	# When animation == 0; plotter == 0 -> plot total E , plotter = 1 -> plot primatives
 
 import os
@@ -28,7 +28,7 @@ Energy = ReadInData(file_name_m[3])	    # Energy
 energy = ReadInData(file_name_m[4])    	# Internal Energy
 lr     = ReadInData(file_name_m[5])     # Lagrange cell center
 press  = ReadInData(file_name_m[6]) 	# Pressure
-mass   = ReadInData(file_name_m[7])  # Total mass
+mass   = ReadInData(file_name_m[7])     # Total mass
 vel    = ReadInData(file_name_m[8])	    # Velocity
 
 r_e       = ReadInData(file_name_e[0])[0]   # Domain

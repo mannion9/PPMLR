@@ -85,7 +85,7 @@ do while (time.LE.t_max .AND. i.LE.NT)
     CALL TimeStep(U,V,dr,dt)	 					 ! Deterimne time step
     CALL Output(U,V,current_mass,dt,r_12_i,i,1,0) ! Write out data
     CALL LagrangeStep(U,V,dm,dt,r_12_i,r_12_ip) 	 ! Preform Lagrange step
-    !CALL Remap(dr,r_12_i,r_12_ip,U,V,dm)
+    CALL Remap(dr,r_12_i,r_12_ip,U,V,dm)
 	
 	! Update current itteration count, time, cell edge locations, cell with, and current mass in system
 	i=i+1
@@ -103,7 +103,7 @@ do while (time.LE.t_max .AND. i.LE.NT)
     END IF 
 	IF (MINVAL(dr(iMIN:iMAX)).LE.0.0) then
 		print*,'Cell with negative volume has been created at itteration',i,'at time:',time
-		!exit
+		exit
 	end if 
     dm = dr*V(1,:)
 
@@ -428,7 +428,7 @@ integer,intent(in) :: detect
 real,dimension(iMIN-2:iMAX+1) :: one,two,three,four,five
 real,dimension(i_min:i_max)   :: del,aRd,aLd
 integer :: js,je
-js = iMIN-2   ! First cell we interpolate is the i=-2  cell
+js = iMIN-1   ! First cell we interpolate is the i=-1  cell
 je = iMAX+1   ! Last  cell we interpolate is the i=Nm  cell
 one   = dx(js:je)/(dx(js:je)+dx(js+1:je+1))
 two   = 1./(dx(js-1:je-1)+dx(js:je)+dx(js+1:je+1)+dx(js+2:je+2))
@@ -546,7 +546,7 @@ aL_temp = aL
 cond1 = (aR-a)*(a-aL)
 cond2 = (aR-aL)*(a-.5*(aL+aR))
 cond3 = ((aR-aL)**(2))/6.
-do i=iMIN-1,iMAX
+do i=iMIN-1,iMAX+1
   if (cond1(i).LE.0.) then
     aL(i) = a(i)
     aR(i) = a(i)
@@ -607,6 +607,7 @@ subroutine boundaries(dr,U,V,BC)
 !----------------------------------
 use CommonData
 implicit none
+integer,parameter :: nl=abs(i_min),nr=i_max-iMAX
 real,intent(inout),dimension(3,i_min:i_max) :: U,V
 real,intent(inout),dimension(i_min:i_max)   :: dr
 integer,intent(in) :: BC
@@ -614,45 +615,77 @@ integer :: i
 !!
 !! Working but make it clearer and easier to read, must be better way to do loop 
 !!
-IF (BC==0) then ! Reflective
-    do i=1,ABS(i_min)
-        dr(iMIN-i) = dr(iMIN+i-1)
-        U(1,iMIN-i)= U(1,iMIN+i-1)
-        U(2,iMIN-i)= U(2,iMIN+i-1)
-        U(3,iMIN-i)= U(3,iMIN+i-1)
-        V(1,iMIN-i)= V(1,iMIN+i-1)
-        V(2,iMIN-i)= V(2,iMIN+i-1)
-        V(3,iMIN-i)= V(3,iMIN+i-1)
-    end do
-    do i=iMAX,i_max-1
-        dr(i+1) = dr(iMAX-(i-iMAX))
-        U(1,i+1)= U(1,iMAX-(i-iMAX))
-        U(2,i+1)= U(2,iMAX-(i-iMAX))
-        U(3,i+1)= U(3,iMAX-(i-iMAX))
-        V(1,i+1)= V(1,iMAX-(i-iMAX))
-        V(2,i+1)= V(2,iMAX-(i-iMAX))
-        V(3,i+1)= V(3,iMAX-(i-iMAX))
-    end do
+IF (BC==0) then ! Transmissive
+	! Update left ghost cells
+	dr(i_min:iMIN-1)  = dr(nl-1:iMIN:-1)
+	U(1,i_min:iMIN-1) = U(1,nl-1:iMIN:-1)
+	U(2,i_min:iMIN-1) = U(2,nl-1:iMIN:-1)
+	U(3,i_min:iMIN-1) = U(3,nl-1:iMIN:-1)
+	V(1,i_min:iMIN-1) = V(1,nl-1:iMIN:-1)
+	V(2,i_min:iMIN-1) = V(2,nl-1:iMIN:-1)
+	V(3,i_min:iMIN-1) = V(3,nl-1:iMIN:-1)
+	! Update right ghot cells
+	dr(Nm:i_max)  = dr(iMAX:Nm-nr:-1)
+	U(1,Nm:i_max) = U(1,iMAX:Nm-nr:-1)
+	U(2,Nm:i_max) = U(2,iMAX:Nm-nr:-1)
+	U(3,Nm:i_max) = U(3,iMAX:Nm-nr:-1)
+	V(1,Nm:i_max) = V(1,iMAX:Nm-nr:-1)
+	V(2,Nm:i_max) = V(2,iMAX:Nm-nr:-1)
+	V(3,Nm:i_max) = V(3,iMAX:Nm-nr:-1)
+!    do i=1,ABS(i_min)
+!        dr(iMIN-i) = dr(iMIN+i-1)
+!        U(1,iMIN-i)= U(1,iMIN+i-1)
+!        U(2,iMIN-i)= U(2,iMIN+i-1)
+!        U(3,iMIN-i)= U(3,iMIN+i-1)
+!        V(1,iMIN-i)= V(1,iMIN+i-1)
+!        V(2,iMIN-i)= V(2,iMIN+i-1)
+!        V(3,iMIN-i)= V(3,iMIN+i-1)
+!    end do
+!    do i=iMAX,i_max-1
+!        dr(i+1) = dr(iMAX-(i-iMAX))
+!        U(1,i+1)= U(1,iMAX-(i-iMAX))
+!        U(2,i+1)= U(2,iMAX-(i-iMAX))
+!        U(3,i+1)= U(3,iMAX-(i-iMAX))
+!        V(1,i+1)= V(1,iMAX-(i-iMAX))
+!        V(2,i+1)= V(2,iMAX-(i-iMAX))
+!        V(3,i+1)= V(3,iMAX-(i-iMAX))
+!    end do
 ELSE IF (BC==1) then ! Periodic
-    do i=1,ABS(i_min)
-        dr(iMIN-i) = dr(iMAX-i+1)
-        U(1,iMIN-i)= U(1,iMAX-i+1)
-        U(2,iMIN-i)= U(2,iMAX-i+1)
-        U(3,iMIN-i)= U(3,iMAX-i+1)
-        V(1,iMIN-i)= V(1,iMAX-i+1)
-        V(2,iMIN-i)= V(2,iMAX-i+1)
-        V(3,iMIN-i)= V(3,iMAX-i+1)
-    end do
-    do i=iMAX+1,i_max
-        dr(i) = dr(iMIN+i-iMAX-1)
-        U(1,i)= U(1,iMIN+i-iMAX-1)
-        U(2,i)= U(2,iMIN+i-iMAX-1)
-        U(3,i)= U(3,iMIN+i-iMAX-1)
+	! Update left ghost cells
+    dr(i_min:iMIN-1) = dr(Nm-nl:iMAX)
+    U(1,i_min:iMIN-1)= U(1,Nm-nl:iMAX)
+    U(2,i_min:iMIN-1)= U(2,Nm-nl:iMAX)
+    U(3,i_min:iMIN-1)= U(3,Nm-nl:iMAX)
+    V(1,i_min:iMIN-1)= V(1,Nm-nl:iMAX)
+    V(2,i_min:iMIN-1)= V(2,Nm-nl:iMAX)
+    V(3,i_min:iMIN-1)= V(3,Nm-nl:iMAX)
+	! Update right ghost cells
+    dr(Nm:i_max) = dr(iMIN:nr-1)
+    U(1,Nm:i_max)= U(1,iMIN:nr-1)
+    U(2,Nm:i_max)= U(2,iMIN:nr-1)
+    U(3,Nm:i_max)= U(3,iMIN:nr-1)
+    V(1,Nm:i_max)= V(1,iMIN:nr-1)
+    V(2,Nm:i_max)= V(2,iMIN:nr-1)
+    V(3,Nm:i_max)= V(3,iMIN:nr-1)
+!    do i=1,ABS(i_min)
+!        dr(iMIN-i) = dr(iMAX-i+1)
+!        U(1,iMIN-i)= U(1,iMAX-i+1)
+!        U(2,iMIN-i)= U(2,iMAX-i+1)
+!        U(3,iMIN-i)= U(3,iMAX-i+1)
+!        V(1,iMIN-i)= V(1,iMAX-i+1)
+!        V(2,iMIN-i)= V(2,iMAX-i+1)
+!        V(3,iMIN-i)= V(3,iMAX-i+1)
+!    end do
+!    do i=iMAX+1,i_max
+!        dr(i) = dr(iMIN+i-iMAX-1)
+!        U(1,i)= U(1,iMIN+i-iMAX-1)
+!        U(2,i)= U(2,iMIN+i-iMAX-1)
+!        U(3,i)= U(3,iMIN+i-iMAX-1)
         
-        V(1,i)= V(1,iMIN+i-iMAX-1)
-        V(2,i)= V(2,iMIN+i-iMAX-1)
-        V(3,i)= V(3,iMIN+i-iMAX-1)
-    end do
+!        V(1,i)= V(1,iMIN+i-iMAX-1)
+!        V(2,i)= V(2,iMIN+i-iMAX-1)
+!        V(3,i)= V(3,iMIN+i-iMAX-1)
+!    end do
 END IF 
 end subroutine
 

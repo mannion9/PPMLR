@@ -28,10 +28,10 @@ module CommonData
 ! r_min - Left most ghost cell center
 ! r_max - Right most ghost cell center
 implicit none
-!integer,parameter :: Nm = 64,Nt = 6
-integer,parameter :: Nm=1000 ,Nt = 100
-integer,parameter :: i_min=-3,i_max=Nm+3 , iMIN=0,iMAX=Nm-1 !Nm is number of interior real
-real,parameter    :: rMIN=0.,rMAX=1.,t_max=.25,gm = 1.4,alpha=0.,ap1 = alpha+1.,  &
+!integer,parameter :: Nm = 8,Nt = 6
+integer,parameter :: Nm=250 ,Nt = 250
+integer,parameter :: i_min=-3,i_max=Nm+3 , iMIN=0,iMAX=Nm-1,alpha=0,ap1 = alpha+1!Nm is number of interior real
+real,parameter    :: rMIN=0.,rMAX=1.,t_max=.25,gm = 1.4,  &
                      delta=1.0d-30 , COURANT = 0.1 , dr_uni = (rMAX-rMIN)/REAL(Nm-1), &
                      r_min = rMIN -dr_uni*(iMIN-i_min) , &
                      r_max = rMAX +dr_uni*(i_max-iMAX)
@@ -48,23 +48,22 @@ real :: dt,total_mass,current_mass,time=0.0
 integer :: i
 
 ! Create cell center,edges,and initial conditions
-
-
-CALL linspace(r_min,r_max,r,SIZE(r))                            ! All cell centers (including ghost cells)
+CALL linspace(r_min,r_max,r,SIZE(r))                                ! All cell centers (including ghost cells)
 CALL linspace(r_min-.5*dr_uni,r_max+.5*dr_uni,r_12_i,SIZE(r_12_i))  ! All cell edges   (including ghost cells)
 open(unit=1,file='Output/CellCenter.txt')
 write(1,*) r(iMIN:iMAX)
 close(1)
+
 ! Initialize cell width and initial conditions and total mass inside real cells
 
 dr(iMIN:iMAX) = r_12_i(iMIN+1:iMAX+1)-r_12_i(iMIN:iMAX)
-CALL intialCondition(r,U,V,1)
+CALL intialCondition(r,U,V,2)
 dt = 1.0d+30   ! Initialize as very large number for first time step, ensures that we use a calculated dt
 dm = dr*V(1,:)
 total_mass = SUM(dm(iMIN:iMAX))  ! Total Mass initially in system
 current_mass = total_mass        ! Total Mass in system at each step
-print*,'Total Mass:',total_mass
 
+! Open Files to write out to 
 open(unit=1,file='Output/Density.txt')
 open(unit=2,file='Output/Velocity.txt')
 open(unit=3,file='Output/InternalEnergy.txt')
@@ -74,45 +73,70 @@ open(unit=7,file='Output/dt.txt')
 open(unit=8,file='Output/LagnCellCenter.txt')
 open(unit=9,file='Output/TotalMass.txt')
 
+
+! Debugging to show cell integer values
 ! do i = i_min,i_max
     ! itters(i) = real(i)
 ! end do 
 !print*,'itt :',itters(iMIN:iMAX)
+
 i=0
-
-do while (time.LE.t_max .AND. i.LE.NT)
-    CALL boundaries(dr,U,V,0)    					 ! Impose boundary conditions for ghost cells
-    CALL TimeStep(U,V,dr,dt)	 					 ! Deterimne time step
+do while (time.LE.t_max .AND. i.LT.NT)
+    CALL boundaries(dr,dm,U,V,0)    			  ! Impose boundary conditions for ghost cells
+    CALL TimeStep(U,V,dr,dt)	 				  ! Deterimne time step
     CALL Output(U,V,current_mass,dt,r_12_i,i,1,0) ! Write out data
-    CALL LagrangeStep(U,V,dm,dt,r_12_i,r_12_ip) 	 ! Preform Lagrange step
-    CALL Remap(dr,r_12_i,r_12_ip,U,V,dm)
-	
-	! Update current itteration count, time, cell edge locations, cell with, and current mass in system
-	i=i+1
-	time = time+dt
-	r_12_i = r_12_ip  ! Remap will set r_12_ip = stationary euler cell
-	dr(iMIN:iMAX) = r_12_i(iMIN+1:iMAX+1)-r_12_i(iMIN:iMAX)
-	current_mass = SUM(dm(iMIN:iMAX))       
-	!print*,'M:',SUM(dm(iMIN:iMAX)) 		! CHECK MASS IS CONSERVED
-	!print*,dt								! CHECK DT   IS POSITIVE
-	!print*,'dr min:',MINVAL(dr(iMIN:iMAX)) ! CHECK CELL WIDTHS 
-	!print*,MINLOC(dr(iMIN:iMAX))			! CHECK THAT MINUMUM CELL LOCATION IS A SHOCK
-	IF (current_mass/total_mass.LT. .9) THEN
-        PRINT*,'Conservation of mass broken at itteration:',i,'at time:',time
-        exit
-    END IF 
-	IF (MINVAL(dr(iMIN:iMAX)).LE.0.0) then
-		print*,'Cell with negative volume has been created at itteration',i,'at time:',time
-		exit
-	end if 
-    dm = dr*V(1,:)
-
+    CALL LagrangeStep(U,V,dm,dt,r_12_i,r_12_ip)   ! Preform Lagrange step
+    !CALL Remap(dr,r_12_i,r_12_ip,U,V,dm)
+	CALL Update(i,time,dt,r_12_i,r_12_ip,dm,dr,current_mass,total_mass,V(1,:)) ! Update 
 end do 
-print*,'Finished at time:',time,',after:',i,'itterations:'
+
+if (i.NE.NT) then ! Completed without issues
+	print*,'Finished without issues at:',time,',after:',i,'itterations:'
+end if 
 close(1)
 close(2)
 close(3)
 end program
+
+subroutine Update(i,time,dt,r_12_i,r_12_ip,dm,dr,current_mass,total_mass,rho)
+!--------------------------------------------------------------------
+! Updates values after full itteration and also checks that we have 
+! conserved mass, and that all cells are disentangled. If the mass
+! is not conserved or if the cells get tangled, then this subroutine
+! triggers the program to terminate.
+! Input/Output:
+!	r_12_i  - New Eulerian cell edges after one itteration
+!   r_12_ip - Cell Eulerian cell edges after Lagrange step and a remapping 
+!	dm	    - Mass in eulerian cell after remapping, or Mass in Lagrange cell if remap is off
+!   dr 		- Eulerian cell widths after one itteration
+!   rho     - Density
+!	time	- Time in simulation
+!   dt 		- Time step taken in this itteration
+!	current_mass - Mass of system at current step
+!	total_mass 	 - Mass of system at initial condition
+!	i		- Itteration counter.
+!------------------------------------------------------------------
+use CommonData
+real,intent(inout),dimension(i_min:i_max) :: r_12_i,r_12_ip,dm,dr,rho
+real,intent(inout) :: time,dt,current_mass,total_mass
+integer,intent(inout) :: i
+i = i + 1												! Update stepper
+time = time + dt 										! Update time 
+r_12_i = r_12_ip 										! Update cell edges  (Will only change if in full Lagrange mode) ** Remap sets r_12_ip=startionary cells
+dr(iMIN:iMAX) = r_12_i(iMIN+1:iMAX+1)-r_12_i(iMIN:iMAX) ! Update cell widths (Will only change if in full Lagrange mode)
+dm = dr*rho      										! Update the mass in each cell
+current_mass = SUM(dm(iMIN:iMAX))  						! Update total mass
+
+IF (current_mass/total_mass.LT. .9) THEN ! If the mass is less then 90% of the original mass break
+	PRINT*,'Conservation of mass broken at itteration:',i,'at time:',time
+	print*,'Program Terminated Early'
+	i = NT ! This will stop Main program
+else if (MINVAL(dr(iMIN:iMAX)).LE.0.0) then ! If a cell has been tangled, and now has negative volume break
+	print*,'Cell with negative volume has been created at itteration',i,'at time:',time
+	print*,'Program Terminated Early'
+	i = NT ! This will stop Main program
+end if 
+end subroutine
 
 subroutine Remap(dr,r_12_i,r_12_ip,U,V,dm)
 use CommonData
@@ -214,10 +238,10 @@ real,intent(inout),dimension(3,i_min:i_max)  :: U,V
 real,intent(in),dimension(i_min:i_max)       :: dm
 real,intent(in) :: dt
 real,dimension(i_min:i_max) :: u_star,p_star,Abar  
-real,dimension(i_min:i_max) :: pL,pR,uL,uR,c_p,c_m
+real,dimension(i_min:i_max) :: pL=1.,pR=1.,uL=1.,uR=1.,c_p,c_m
 integer :: i
 
-call RiemannEffectiveStates(U,V,r_12_i,pL,pR,uL,uR,c_p,c_m,dt,dm,0)
+call RiemannEffectiveStates(U,V,r_12_i,pL,pR,uL,uR,c_p,c_m,dt,dm,1)
 call RiemannSolver(pL,pR,uL,uR,c_p,c_m,p_star,u_star)
 
 ! print*,'pL:',pL(iMIN:iMAX+1)
@@ -282,7 +306,7 @@ real :: TOL=10.**(-6),diff,Temp,Wl,del_u,f,f_var,fprime,gmp1=gm+1
 integer :: j, i, itterMAX = 20
 p_star = .5*(pL+pR)! initial guess value
 do j=iMIN,iMAX+1  ! For each cell interface
-  diff = 1. 	  ! Intialize doesnt for first itteration
+  diff = 1. 	  ! Intialize doesnt matter for first itteration
   del_u = uR(j)-uL(j)
   do i=1,itterMAX
     if (diff > TOL) then
@@ -344,27 +368,37 @@ real,dimension(i_min:i_max) ::   rhoR,rhoL,delrho,rho6,rho12, &
 real    :: twth = 2./3.
 integer :: i,j
 
-! This goes from iMIN-1:iMAX+1 because we need to calculate effective states
-! from the zero interface to the iMAX+1 interface
+! This goes from iMIN-1:iMAX+1 because we need to calculate effective states 
+! from the zero interface to the iMAX+1 interface, so we need the first ghost
+! cell on left and right.
 dr(iMIN-1:iMAX+1) = r_12_i(iMIN:iMAX+2)-r_12_i(iMIN-1:iMAX+1)
-A(iMIN-1:iMAX+1)  = (r_12_i(iMIN:iMAX+2)**(ap1)-r_12_i(iMIN-1:iMAX+1)**(ap1))/(ap1*dr(iMIN-1:iMAX+1))
-cs = SQRT(gm*V(3,:)*V(1,:))
-z  = dt*cs*A/dm
+cs(iMIN-1:iMAX+1) = SQRT(gm*V(3,iMIN-1:iMAX+1)*V(1,iMIN-1:iMAX+1))
+
+ if (alpha.EQ.0) then    ! If alpha = 1 then A reduces to 1 analyitically, this guarentees that
+        A(iMIN-1:iMAX+1) = 1.
+    else 
+		A(iMIN-1:iMAX+1) = (r_12_i(iMIN:iMAX+2)**(ap1)-r_12_i(iMIN-1:iMAX+1)**(ap1))/(ap1*dr(iMIN-1:iMAX+1))
+end if 
+
 
 call interpol(V(1,:),dm,rho12,rhoR,rhoL,delrho,rho6,0)
 call interpol(U(2,:),dm,u12  ,uR  ,uL  ,delu  ,u6  ,0)
 call interpol(V(3,:),dm,p12  ,pR  ,pL  ,delp  ,p6  ,0)
 
+z  = dt*cs*A/dm
+
 if (choice==1) then ! Actually do the correct domain of dependence using flux integrals
     do i=iMIN,iMAX+1  ! For each interface we need a left and right state 
-        pp(i)  = pR(i)  - 0.5*z(i)*(delp(i) -(1.-twth*z(i))*p6(i)  )
-        up(i)  = uR(i)  - 0.5*z(i)*(delu(i) -(1.-twth*z(i))*u6(i)  )
-        rhop(i)= rhoR(i)-0.5*z(i)*(delrho(i)-(1.-twth*z(i))*rho6(i))
+		! data from the state on the left of the interfaces
+		j = i -1 
+        pp(i)  = pR(j)  - 0.5*z(j)*(delp(j) - (1.-twth*z(j))*p6(j)  )
+        up(i)  = uR(j)  - 0.5*z(j)*(delu(j) - (1.-twth*z(j))*u6(j)  )
+        rhop(i)= rhoR(j)- 0.5*z(j)*(delrho(j)-(1.-twth*z(j))*rho6(j))
         c_p(i) = gm*pp(i)*rhop(i) ! The square of lagrange speed of sound
-		j = i+1
-        pm(i)  = pL(j)  + 0.5*z(j)*(delp(j)  +(1.-twth*z(j))*p6(j)  )
-        um(i)  = uL(j)  + 0.5*z(j)*(delu(j)  +(1.-twth*z(j))*u6(j)  )
-        rhom(i)= rhoL(j)+ 0.5*z(j)*(delrho(j)+(1.-twth*z(j))*rho6(j))
+		! Data from the state on the right of the interfaces
+        pm(i)  = pL(i)  + 0.5*z(i)*(delp(i)  +(1.-twth*z(i))*p6(i)  )
+        um(i)  = uL(i)  + 0.5*z(i)*(delu(i)  +(1.-twth*z(i))*u6(i)  )
+        rhom(i)= rhoL(i)+ 0.5*z(i)*(delrho(i)+(1.-twth*z(i))*rho6(i))
         c_m(i) = gm*pm(i)*rhom(i) ! The square of lagrange speed of sound
     end do 
 else  ! Just use full cell average as left and right states
@@ -377,6 +411,16 @@ else  ! Just use full cell average as left and right states
     c_p(iMIN:iMAX+1) = (gm*pp(iMIN:iMAX+1)*rhop(iMIN:iMAX+1)) ! The square of Lagrange speed of sound from left cell
     c_m(iMIN:iMAX+1) = (gm*pm(iMIN:iMAX+1)*rhom(iMIN:iMAX+1)) ! The square of Lagrange speed of sound from right cell
 end if 
+!print*,'diff r-',MAXVAL(rhom(iMIN:iMAX+1)- V(1,iMIN:iMAX+1))
+!print*,'diff u-',MAXVAL(um(iMIN:iMAX+1)- U(2,iMIN:iMAX+1))
+!print*,'diff P-',MAXVAL(pm(iMIN:iMAX+1)- V(3,iMIN:iMAX+1))
+! print*,A(iMIN-1),dm(iMIN-1)
+! print*,'coef:',pR(iMIN-1),z(iMIN-1),delp(iMIN-1),p6(iMIN-1)
+! print*,'c :',cs(iMIN-1)
+! print*,'p-:',pm(iMIN)
+! print*,'u-:',um(iMIN)
+! print*,'p+:',pp(iMIN)
+! print*,'u+:',um(iMIN)
 end subroutine 
 
 subroutine func_RP(cp,cm,p,pl,pr,del_u,eval)
@@ -594,12 +638,13 @@ dt = MIN(dt,2.*dt_temp)
 
 end subroutine 
 
-subroutine boundaries(dr,U,V,BC)
+subroutine boundaries(dr,dm,U,V,BC)
 !--------------------------------
 ! Assigns ghost cells values determined 
 ! by the chosen boundary conditions
 ! Inputs:
 !	dr - Euler cell widths
+!	dm - Mass in lagrange cells
 !	BC - Chosen boundary condition
 ! Input/Output:
 !   U - Vector of variables (tau,u,E)
@@ -609,7 +654,7 @@ use CommonData
 implicit none
 integer,parameter :: nl=abs(i_min),nr=i_max-iMAX
 real,intent(inout),dimension(3,i_min:i_max) :: U,V
-real,intent(inout),dimension(i_min:i_max)   :: dr
+real,intent(inout),dimension(i_min:i_max)   :: dr,dm
 integer,intent(in) :: BC
 integer :: i
 !!
@@ -618,6 +663,7 @@ integer :: i
 IF (BC==0) then ! Transmissive
 	! Update left ghost cells
 	dr(i_min:iMIN-1)  = dr(nl-1:iMIN:-1)
+	dm(i_min:iMIN-1)  = dm(nl-1:iMIN:-1)
 	U(1,i_min:iMIN-1) = U(1,nl-1:iMIN:-1)
 	U(2,i_min:iMIN-1) = U(2,nl-1:iMIN:-1)
 	U(3,i_min:iMIN-1) = U(3,nl-1:iMIN:-1)
@@ -626,33 +672,17 @@ IF (BC==0) then ! Transmissive
 	V(3,i_min:iMIN-1) = V(3,nl-1:iMIN:-1)
 	! Update right ghot cells
 	dr(Nm:i_max)  = dr(iMAX:Nm-nr:-1)
+	dm(Nm:i_max)  = dm(iMAX:Nm-nr:-1)
 	U(1,Nm:i_max) = U(1,iMAX:Nm-nr:-1)
 	U(2,Nm:i_max) = U(2,iMAX:Nm-nr:-1)
 	U(3,Nm:i_max) = U(3,iMAX:Nm-nr:-1)
 	V(1,Nm:i_max) = V(1,iMAX:Nm-nr:-1)
 	V(2,Nm:i_max) = V(2,iMAX:Nm-nr:-1)
 	V(3,Nm:i_max) = V(3,iMAX:Nm-nr:-1)
-!    do i=1,ABS(i_min)
-!        dr(iMIN-i) = dr(iMIN+i-1)
-!        U(1,iMIN-i)= U(1,iMIN+i-1)
-!        U(2,iMIN-i)= U(2,iMIN+i-1)
-!        U(3,iMIN-i)= U(3,iMIN+i-1)
-!        V(1,iMIN-i)= V(1,iMIN+i-1)
-!        V(2,iMIN-i)= V(2,iMIN+i-1)
-!        V(3,iMIN-i)= V(3,iMIN+i-1)
-!    end do
-!    do i=iMAX,i_max-1
-!        dr(i+1) = dr(iMAX-(i-iMAX))
-!        U(1,i+1)= U(1,iMAX-(i-iMAX))
-!        U(2,i+1)= U(2,iMAX-(i-iMAX))
-!        U(3,i+1)= U(3,iMAX-(i-iMAX))
-!        V(1,i+1)= V(1,iMAX-(i-iMAX))
-!        V(2,i+1)= V(2,iMAX-(i-iMAX))
-!        V(3,i+1)= V(3,iMAX-(i-iMAX))
-!    end do
 ELSE IF (BC==1) then ! Periodic
 	! Update left ghost cells
     dr(i_min:iMIN-1) = dr(Nm-nl:iMAX)
+	dm(i_min:iMIN-1) = dm(Nm-nl:iMAX)
     U(1,i_min:iMIN-1)= U(1,Nm-nl:iMAX)
     U(2,i_min:iMIN-1)= U(2,Nm-nl:iMAX)
     U(3,i_min:iMIN-1)= U(3,Nm-nl:iMAX)
@@ -661,31 +691,13 @@ ELSE IF (BC==1) then ! Periodic
     V(3,i_min:iMIN-1)= V(3,Nm-nl:iMAX)
 	! Update right ghost cells
     dr(Nm:i_max) = dr(iMIN:nr-1)
+	dm(Nm:i_max) = dm(iMIN:nr-1)
     U(1,Nm:i_max)= U(1,iMIN:nr-1)
     U(2,Nm:i_max)= U(2,iMIN:nr-1)
     U(3,Nm:i_max)= U(3,iMIN:nr-1)
     V(1,Nm:i_max)= V(1,iMIN:nr-1)
     V(2,Nm:i_max)= V(2,iMIN:nr-1)
     V(3,Nm:i_max)= V(3,iMIN:nr-1)
-!    do i=1,ABS(i_min)
-!        dr(iMIN-i) = dr(iMAX-i+1)
-!        U(1,iMIN-i)= U(1,iMAX-i+1)
-!        U(2,iMIN-i)= U(2,iMAX-i+1)
-!        U(3,iMIN-i)= U(3,iMAX-i+1)
-!        V(1,iMIN-i)= V(1,iMAX-i+1)
-!        V(2,iMIN-i)= V(2,iMAX-i+1)
-!        V(3,iMIN-i)= V(3,iMAX-i+1)
-!    end do
-!    do i=iMAX+1,i_max
-!        dr(i) = dr(iMIN+i-iMAX-1)
-!        U(1,i)= U(1,iMIN+i-iMAX-1)
-!        U(2,i)= U(2,iMIN+i-iMAX-1)
-!        U(3,i)= U(3,iMIN+i-iMAX-1)
-        
-!        V(1,i)= V(1,iMIN+i-iMAX-1)
-!        V(2,i)= V(2,iMIN+i-iMAX-1)
-!        V(3,i)= V(3,iMIN+i-iMAX-1)
-!    end do
 END IF 
 end subroutine
 
@@ -719,9 +731,9 @@ if (choice==1) then
     end if 
   end do
 else if (choice == 2) then
-    print*,'Constant Move Right'
+    print*,'Constant'
     V(1,iMIN:iMAX) = 1.
-    U(2,iMIN:iMAX) = 1.
+    U(2,iMIN:iMAX) = 0.
     V(3,iMIN:iMAX) = 1.
 else if (choice==3) then 
     print*,' SOFT Sod Test'
@@ -783,6 +795,7 @@ if (printOut==1) then
     print*,'e  :',V(2,st:en)
     print*,'P  :',V(3,st:en)
     print*,'dt :',dt
+	print*,'L_r:',.5*(r_12_i(iMIN:iMAX)+r_12_i(iMIN+1:iMAX+1)) ! Lagrange Cell Ceters
     print*,'M  :',M
 end if 
 

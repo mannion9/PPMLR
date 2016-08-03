@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt 
-domain_f  = open('Exact-Output/domain.txt','r')
-pressure_f= open('Exact-Output/pressure.txt','r')
-rho_f     = open('Exact-Output/rho.txt','r')
-velocity_f= open('Exact-Output/velocity.txt','r')
-energy_f  = open('Exact-Output/energy.txt','r')
+domain_f  = open('Output/domain.txt','r')
+pressure_f= open('Output/pressure.txt','r')
+rho_f     = open('Output/rho.txt','r')
+velocity_f= open('Output/velocity.txt','r')
+energy_f  = open('Output/energy.txt','r')
 
 def ReadInData(files):
     ''' Input is a list of the files that have been opened.

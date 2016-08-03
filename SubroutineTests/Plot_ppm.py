@@ -2,14 +2,14 @@ from matplotlib import pyplot as plt
 from matplotlib import animation 
 show  = 0 # Set to 0 to see whole solution and 1 to see uL and uR and interpolation
 
-domain = open('Output/domain.txt')     # Cell centers   (0,Nx-1)   array
-cell   = open('Output/cells.txt')      # Cell edges     (0,Nx)     array
-a      = open('Output/a.txt')          # PPM solution  Nt*(0,Nx-1) arrays
-a_true = open('Output/true.txt')       # True solution Nt*(0,Nx-1) arrays 
-#a_first= open('Output/a_first_0.txt')  # First order   Nt*(0,Nx-1) arrays
-al     = open('Output/uL.txt')         # aL            Nt*(0,Nx-1) arrays
-ar     = open('Output/uR.txt')         # aR            Nt*(0,Nx-1) arrays
-a12    = open('Output/u12.txt')        # a12           Nt*(0,Nx-1) arrays
+domain = open('Output_Interpol/domain.txt')     # Cell centers   (0,Nx-1)   array
+cell   = open('Output_Interpol/cells.txt')      # Cell edges     (0,Nx)     array
+a      = open('Output_Interpol/a.txt')          # PPM solution  Nt*(0,Nx-1) arrays
+a_true = open('Output_Interpol/true.txt')       # True solution Nt*(0,Nx-1) arrays 
+#a_first= open('Output_Interpol/a_first_0.txt')  # First order   Nt*(0,Nx-1) arrays
+al     = open('Output_Interpol/uL.txt')         # aL            Nt*(0,Nx-1) arrays
+ar     = open('Output_Interpol/uR.txt')         # aR            Nt*(0,Nx-1) arrays
+a12    = open('Output_Interpol/u12.txt')        # a12           Nt*(0,Nx-1) arrays
 
 #files  = [domain,cell,a,a_true,a_first,al,ar,a12]
 files  = [domain,cell,a,a_true,al,ar,a12]
@@ -57,7 +57,7 @@ def update(i,fig,scat1,plt1):
 	return scat1,plt1
 ani = animation.FuncAnimation(fig,update,fargs=(fig,scat1,plt1),frames=len(a),interval=500)
 ani.save('out.mp4',fps=10)
-plt.show()
+#plt.show()
 
 # if show == 0:
     # #for i in range(0,5):

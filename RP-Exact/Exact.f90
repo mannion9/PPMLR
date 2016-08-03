@@ -12,13 +12,13 @@ integer :: i,j,test=1,check ! Test 2 and 4 have p_star issue
 common/gammas/ g,gm1,gp1 
 
 if (test==1) then
-  open(unit=1,file='Exact-Inputs/Input_1.txt')
-  print*,'Test 1'
+  open(unit=1,file='RP-Exact/Inputs/Input_1.txt')
+  !print*,'Test 1'
 else if (test==2) then
-  open(unit=1,file='Exact-Inputs/Input_2.txt')
-  print*,'Test 2'
+  open(unit=1,file='RP-Exact/Inputs/Input_2.txt')
+  !print*,'Test 2'
 end if 
-open(unit=2,file='Output/dt.txt')
+open(unit=2,file='RP-Exact/Inputs/dt.txt')
 
 
 do i=0,2
@@ -51,13 +51,13 @@ u_star = .5*(w_l(1)+w_r(1))+.5*(fr-fl)
 ! print*,'   P_star           U_star     '
 ! print*,p_star,u_star
 CALL linspace(0.,1.,Nm,x)
-open(unit=1,file='Exact-Output/domain.txt')
+open(unit=1,file='RP-Exact/Output/domain.txt')
 write(1,*) x
 close(1)
-open(unit=1,file='Exact-Output/rho.txt')
-open(unit=2,file='Exact-Output/velocity.txt')
-open(unit=3,file='Exact-Output/pressure.txt')
-open(unit=4,file='Exact-Output/energy.txt')
+open(unit=1,file='RP-Exact/Output/rho.txt')
+open(unit=2,file='RP-Exact/Output/velocity.txt')
+open(unit=3,file='RP-Exact/Output/pressure.txt')
+open(unit=4,file='RP-Exact/Output/energy.txt')
 ! Time equal zero
 do i=0,Nm-1
 	if (x(i).LE.0.5) then

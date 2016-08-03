@@ -1,7 +1,7 @@
 module CommonData
 implicit none
 real,parameter ::  x_min=0.,x_max=5.,t_min=0.,t_max=1.,c=1.,COURANT=.9
-integer,parameter :: Nx=128, Nt=2048,choice=3,detect=0  !Choice = (0,1,2)->(square wave,gauss,flat)
+integer,parameter :: Nx=512, Nt=500,choice=2,detect=0  !Choice = (0,1,2)->(square wave,gauss,flat,Square on left )
 !integer,parameter :: Nx=8,Nt=200,choice=1,detect=0
 integer,parameter :: i_min=-3,i_max=Nx+3,iMIN=0,iMAX=Nx-1
 end module
@@ -18,21 +18,6 @@ integer,dimension(1:3) :: test_1
 integer :: i
 
 
-! ! TESTING ARRAY REVERSAL
-! do i=i_min,i_max+1
-	! test(i) = i
-! end do
-! test_1(1:3) = test(0:2)
-! !print*, test(abs(i_min)-1:iMIN,1)
-! print*, test_1(size(test_1):1:-1)
-
-
-!do i=i_min,i_max
-!	 test(i) = i
-!end do
-!print*,test
-
-
 ! -------------------------------
 ! Create cell centers and write to file
 ! Create cell edges   and write to file
@@ -42,8 +27,8 @@ dx_uni = (x_max-x_min)/real(Nx)
 CALL linspace(x_min+.5*dx_uni,x_max+.5*dx_uni,x(iMIN:iMAX),Nx)
 CALL linspace(x_min,x_max,x_12(iMIN:iMAX+1),Nx+1)
 
-open(unit=1,file='Output/domain.txt')
-open(unit=2,file='Output/cells.txt')
+open(unit=1,file='Output_Interpol/domain.txt')
+open(unit=2,file='Output_Interpol/cells.txt')
 write(1,*) x(iMIN:iMAX)      !(0:Nx-1)
 write(2,*) x_12(iMIN:iMAX+1) !(0:Nx)
 close(1)
@@ -62,11 +47,11 @@ CALL initial_data(x(iMIN:iMAX),a_true)
 
 !------------------------------
 ! Time Marching
-open(unit=1,file='Output/a.txt')
-open(unit=2,file='Output/true.txt')
-open(unit=3,file='Output/uL.txt')
-open(unit=4,file='Output/uR.txt')
-open(unit=7,file='Output/u12.txt')
+open(unit=1,file='Output_Interpol/a.txt')
+open(unit=2,file='Output_Interpol/true.txt')
+open(unit=3,file='Output_Interpol/uL.txt')
+open(unit=4,file='Output_Interpol/uR.txt')
+open(unit=7,file='Output_Interpol/u12.txt')
 do i=0,Nt
 	write(1,*) a(iMIN:iMAX)
 	write(2,*) a_true
@@ -129,7 +114,7 @@ real,intent(inout),dimension(i_min:i_max) :: aR,aL,dela,a6
 real,dimension(iMIN-1:iMAX) :: one,two,three,four,five
 real,dimension(i_min:i_max) :: a12,del,aRd,aLd
 integer :: js,je
-js = iMIN-1 ! First cell I interpolate is the i=-1  cell
+js = iMIN-2   ! First cell I interpolate is the i=-1  cell
 je = iMAX+1   ! Last cell  I interpolate is the i=Nm-1 cell
 one   = dx(js:je)/(dx(js:je)+dx(js+1:je+1))
 two   = 1./(dx(js-1:je-1)+dx(js:je)+dx(js+1:je+1)+dx(js+2:je+2))

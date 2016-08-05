@@ -773,7 +773,7 @@ subroutine Output(U,V,M,dt,r_12_i,itter,writeOut,printOut)
 use CommonData
 implicit none
 real,intent(in),dimension(3,i_min:i_max) :: U,V
-real,intent(in),dimension(i_min:i_max)   :: r_12_i
+real,intent(in),dimension(i_min:i_max+1)   :: r_12_i
 integer,intent(in) :: itter,writeOut,printOut
 real,intent(in) :: dt, M
 integer :: st,en,choice 

@@ -7,6 +7,10 @@ rho_floor = [-0.5,10.]
 u_floor   = [-1.,10.]
 P_floor   = [-0.5,10.]
 e_floor   = [-0.5,10.]  
+#rho_floor = [-0.5,1.2]
+#u_floor   = [-1.,3.]
+#P_floor   = [-0.5,1.2]
+#e_floor   = [-0.5,4.0] 
 
 import os
 import numpy as np
@@ -105,14 +109,14 @@ if animate == 1:
     scat2 = ax2.scatter(x,vel[0],marker='+')
     scat3 = ax3.scatter(x,press[0],marker='+')
     scat4 = ax4.scatter(x,energy[0],marker='+')
-#    plt1, = ax1.plot(r_e,rho_e[0])
-#    plt2, = ax2.plot(r_e,vel_e[0])
-#    plt3, = ax3.plot(r_e,press_e[0])
-#    plt4, = ax4.plot(r_e,energy_e[0])
+    plt1, = ax1.plot(r_e,rho_e[0])
+    plt2, = ax2.plot(r_e,vel_e[0])
+    plt3, = ax3.plot(r_e,press_e[0])
+    plt4, = ax4.plot(r_e,energy_e[0])
     
     # animation function.  This is called sequentially
-    #def update(i,fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4):
-    def update(i,fig,scat1,scat2,scat3,scat4):    
+    def update(i,fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4):
+    #def update(i,fig,scat1,scat2,scat3,scat4):    
         if Lagrange == 0:
             x = lr[i]
         else:
@@ -121,14 +125,14 @@ if animate == 1:
         scat2.set_offsets([[x[j],vel[i][j]]    for j in range(len(vel[i])-1)])
         scat3.set_offsets([[x[j],press[i][j]]  for j in range(len(press[i])-1)])
         scat4.set_offsets([[x[j],energy[i][j]] for j in range(len(energy[i])-1)])
-#        plt1.set_data(r_e,rho_e[i])
-#        plt2.set_data(r_e,vel_e[i])
-#        plt3.set_data(r_e,press_e[i])
-#        plt4.set_data(r_e,energy_e[i])
+        plt1.set_data(r_e,rho_e[i])
+        plt2.set_data(r_e,vel_e[i])
+        plt3.set_data(r_e,press_e[i])
+        plt4.set_data(r_e,energy_e[i])
         plt.suptitle(' Step %i Time %f , Total Mass %f ' %( i , t[i] , mass[i][0]))
         return scat1,scat2,scat3,scat4
-    anim = animation.FuncAnimation(fig, update,fargs=(fig,scat1,scat2,scat3,scat4),frames=len(rho),interval=500)
-    #anim = animation.FuncAnimation(fig, update,fargs=(fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4),frames=len(rho),interval=500)
+    #anim = animation.FuncAnimation(fig, update,fargs=(fig,scat1,scat2,scat3,scat4),frames=len(rho),interval=500)
+    anim = animation.FuncAnimation(fig, update,fargs=(fig,scat1,scat2,scat3,scat4,plt1,plt2,plt3,plt4),frames=len(rho),interval=500)
     anim.save('Output/out.mp4', fps=1)
     #plt.show(1)
     

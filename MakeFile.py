@@ -1,8 +1,8 @@
 Compiler = 'gfortran'  # Fortran compiler
-COMP     = 'PC'       # Computer type
+COMP     = 'MAC'       # Computer type
 
 # Definitions for different systems
-if COMP == 'Mac':
+if COMP == 'MAC':
     Open = 'open'       # Command to open files in shell
     Mod  = '.md'       # file end for modules
     Exe  = 'a.out'      # file end for executable

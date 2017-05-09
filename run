@@ -1,0 +1,29 @@
+#!/bash
+fcompiler="gfortran"
+fopen="open" # Command to open video file via terminal (i.e. open for mac)
+exact="0"  # '0' plot only numerical solution, '1' plot with exact solution
+totalE="0" # '0' plot with only internal energy, '1' plot with total energy and internal
+output="1" # '-1' no plot , '0' create .png files, '1' create animation pop up, '2' create .mp4, '3' Only density
+
+# Remove old files
+rm -f Exact/{*.mod *.out *.exe}
+rm -f Exact/{Output,Inputs}/*.txt
+rm -f Output/Pictures/*.png
+
+# Compile main program and execute
+cp Inputs.f90 src/ ; cd src/ ; make ; make clean ; cd .. ; mv src/exe .
+./exe
+
+# Compmlie Exact program and execute
+if [ $exact == "1" ]
+then
+	cp Output/{CurrentTime,InitialState,Domain}.txt Exact/Inputs/  # Give exact solution access initial conditions, domain, and time step
+	cd Exact/ ; make ; ./exe ; make clean ; cd ..
+fi
+
+# Plotting
+if [ $output == "0" ] || [ $output == "1" ] || [ $output == "2" ] || [ $output == "3" ]
+then python Plot.py $exact $totalE $output
+fi
+
+if [ $output == "2" ] ; then $fopen Output/out.mp4 ; fi

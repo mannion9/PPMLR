@@ -1,0 +1,11 @@
+#!/bin/bash
+# Cleans up old outputs. This is mostly used for github commits.
+
+rm -f *.mod exe 
+rm -f Exact/*.mod
+rm -f Exact/*.out
+rm -f Exact/*.exe
+rm -f Exact/Inputs/*.txt
+rm -f Exact/Output/*.txt
+rm -f Output/Pictures/*.png
+rm -f Output/*.txt

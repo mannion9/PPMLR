@@ -1,0 +1,40 @@
+This is a 1D Lagrange plus Remap hydrodynamics code. It is a finite volume method.
+In particular it is Godunov a scheme with the option for the higher order MUSCL or PPM scheme.
+There are options to use the HLL,HLLC, or TwoShock Riemann Solvers. It also has the option to run
+in pure Lagrange mode or the Lagrange plus remap mode.
+
+The users has four files they may modify.
+	1) Inputs.f90
+		- Contains the main inputs for the code including initial conditions, geometry, number of cells, CFL ect.
+		  the user can change the values of these variables.
+	2) run
+		- This is the bash run script. The user has the option to call Plot.py which will provide images or an
+		  animation. There is an option to plot the exact solution for shock tube initial conditions when using
+		  Plot.py
+	3) src/Boundary.f90
+		- The user may specify boundary conditions in this file, and specify the boundary conditions they would like
+		  in the Inputs.f90 file.
+	4) src/Init.f90
+		- This file initializes all variables with the initial conditions. There are several test probles with shock
+		  tube initial data provided. The user may specificy different intial conditions within this file and specify
+		  the initial conditions they would like in the Inputs.f90 file.
+
+Dependencies:
+	1) Fortran
+		- I have tested this code only with gfortran
+	2) Python 3 (for plotting only)
+		- The only package used in matplotlib which may, for animations, require a version of ffmpeg
+
+Running:
+	To run the code call from the terminal
+
+	bash run
+
+Structure:
+	1) Exact
+		- Contains an exact riemann solver based of the algorithm described by Toro in "Riemann Solver and
+			Numerical Methods for Fluid Dynamics". The code in this file is not pretty, but it works.
+	2) Output
+		- Location all outputs are placed from the main program and the plotting from Plot.py
+	3) src
+		- Location of the source files  
